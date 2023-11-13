@@ -5,27 +5,46 @@ const balanceApiUrl = `https://api.blockcypher.com/v1/btc/main/addrs/${walletAdd
 const priceApiUrl =
   "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,eur";
 
-axios
-  .get(balanceApiUrl)
-  .then((balanceResponse) => {
-    const balanceInBTC = balanceResponse.data.balance / 1e8;
-    const balanceInSats = balanceResponse.data.balance;
+let lastBalanceInSats = null;
 
-    axios
-      .get(priceApiUrl)
-      .then((priceResponse) => {
-        const btcToUsd = priceResponse.data.bitcoin.usd;
-        const btcToEur = priceResponse.data.bitcoin.eur;
+const checkBalance = () => {
+  axios
+    .get(balanceApiUrl)
+    .then((balanceResponse) => {
+      const currentBalanceInSats = balanceResponse.data.balance;
 
-        console.log(
-          `Wallet balance: ${balanceInBTC} btc (${balanceInSats} sats)`
-        );
-        console.log(
-          `or: ${(balanceInBTC * btcToUsd).toFixed(2)} usd / ${(
-            balanceInBTC * btcToEur
-          ).toFixed(2)} eur`
-        );
-      })
-      .catch((error) => console.error("Error fetching BTC price:", error));
-  })
-  .catch((error) => console.error("Error fetching wallet balance:", error));
+      console.log("fetching...");
+
+      if (
+        lastBalanceInSats !== null &&
+        currentBalanceInSats !== lastBalanceInSats
+      ) {
+        console.log("NEW TRANSACTION DETECTED!");
+      }
+
+      lastBalanceInSats = currentBalanceInSats;
+      const balanceInBTC = currentBalanceInSats / 1e8;
+
+      axios
+        .get(priceApiUrl)
+        .then((priceResponse) => {
+          const btcToUsd = priceResponse.data.bitcoin.usd;
+          const btcToEur = priceResponse.data.bitcoin.eur;
+
+          console.log(
+            `Wallet balance: ${balanceInBTC} btc (${currentBalanceInSats} sats)`
+          );
+          console.log(
+            `or: ${(balanceInBTC * btcToUsd).toFixed(2)} usd / ${(
+              balanceInBTC * btcToEur
+            ).toFixed(2)} eur`
+          );
+        })
+        .catch((error) => console.error("Error fetching BTC price:", error));
+    })
+    .catch((error) => console.error("Error fetching wallet balance:", error));
+};
+checkBalance();
+
+// Check balance every 10 minutes
+setInterval(checkBalance, 6000);
