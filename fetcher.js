@@ -46,5 +46,5 @@ const checkBalance = () => {
 };
 checkBalance();
 
-// Check balance every 10 minutes
-setInterval(checkBalance, 6000);
+// Check balance every 25 secs
+setInterval(checkBalance, 25000);
