@@ -20,6 +20,7 @@ const checkBalance = () => {
         currentBalanceInSats !== lastBalanceInSats
       ) {
         console.log("NEW TRANSACTION DETECTED!");
+        process.stdout.write("\x07");
       }
 
       lastBalanceInSats = currentBalanceInSats;
