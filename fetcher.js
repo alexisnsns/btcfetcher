@@ -25,7 +25,10 @@ rl.question("Please enter your wallet address: ", function (walletAddress) {
           lastBalanceInSats !== null &&
           currentBalanceInSats !== lastBalanceInSats
         ) {
+          console.log("...");
           console.log("NEW TRANSACTION DETECTED!");
+          console.log("...");
+          // Make some noise
           process.stdout.write("\x07");
         }
 
