@@ -6,12 +6,32 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-rl.question("Please enter your wallet address: ", function (walletAddress) {
+function isValidAddress(address) {
+  // Basic check for length and characters
+  const p2pkhOrP2shRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+  const bech32Regex = /^bc1[a-z0-9]{39,59}$/;
+
+  return p2pkhOrP2shRegex.test(address) || bech32Regex.test(address);
+}
+
+function askForWalletAddress() {
+  rl.question("Please enter your wallet address:\n>", function (walletAddress) {
+    if (isValidAddress(walletAddress)) {
+      fetchBalance(walletAddress);
+    } else {
+      console.log("Invalid wallet address. Please try again.");
+      askForWalletAddress();
+    }
+  });
+}
+
+function fetchBalance(walletAddress) {
   const balanceApiUrl = `https://api.blockcypher.com/v1/btc/main/addrs/${walletAddress}/balance`;
   const priceApiUrl =
     "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,eur";
 
   let lastBalanceInSats = null;
+  let initialFetchDone = false;
 
   const checkBalance = () => {
     axios
@@ -19,46 +39,54 @@ rl.question("Please enter your wallet address: ", function (walletAddress) {
       .then((balanceResponse) => {
         const currentBalanceInSats = balanceResponse.data.balance;
 
-        console.log("fetching...");
-
         if (
-          lastBalanceInSats !== null &&
-          currentBalanceInSats !== lastBalanceInSats
+          !initialFetchDone ||
+          (lastBalanceInSats !== null &&
+            currentBalanceInSats !== lastBalanceInSats)
         ) {
-          console.log("...");
-          console.log("NEW TRANSACTION DETECTED!");
-          console.log("...");
-          // Make some noise
-          process.stdout.write("\x07");
+          initialFetchDone = true;
+
+          if (
+            lastBalanceInSats !== null &&
+            currentBalanceInSats !== lastBalanceInSats
+          ) {
+            console.log("NEW TRANSACTION DETECTED!");
+            // Make some noise
+            process.stdout.write("\x07");
+          }
+
+          const balanceInBTC = currentBalanceInSats / 1e8;
+
+          axios
+            .get(priceApiUrl)
+            .then((priceResponse) => {
+              const btcToUsd = priceResponse.data.bitcoin.usd;
+              const btcToEur = priceResponse.data.bitcoin.eur;
+
+              console.log(
+                `Wallet balance: ${balanceInBTC} BTC (${currentBalanceInSats} sats)`
+              );
+              console.log(
+                `Equivalent to: ${(balanceInBTC * btcToUsd).toFixed(
+                  2
+                )} USD / ${(balanceInBTC * btcToEur).toFixed(2)} EUR`
+              );
+              console.log(
+                "Monitoring for new transactions. You will be notified when a new transaction is incoming..."
+              );
+            })
+            .catch((error) =>
+              console.error("Error fetching BTC price:", error)
+            );
         }
 
         lastBalanceInSats = currentBalanceInSats;
-        const balanceInBTC = currentBalanceInSats / 1e8;
-
-        axios
-          .get(priceApiUrl)
-          .then((priceResponse) => {
-            const btcToUsd = priceResponse.data.bitcoin.usd;
-            const btcToEur = priceResponse.data.bitcoin.eur;
-
-            console.log(
-              `Wallet balance: ${balanceInBTC} btc (${currentBalanceInSats} sats)`
-            );
-            console.log(
-              `or: ${(balanceInBTC * btcToUsd).toFixed(2)} usd / ${(
-                balanceInBTC * btcToEur
-              ).toFixed(2)} eur`
-            );
-          })
-          .catch((error) => console.error("Error fetching BTC price:", error));
       })
       .catch((error) => console.error("Error fetching wallet balance:", error));
   };
 
   checkBalance();
+  setInterval(checkBalance, 25000); // Check balance every 25 secs
+}
 
-  // Check balance every 25 secs
-  setInterval(checkBalance, 25000);
-
-  rl.close();
-});
+askForWalletAddress();
