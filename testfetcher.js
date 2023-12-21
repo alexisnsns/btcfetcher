@@ -89,7 +89,7 @@ function fetchBalance(walletAddress) {
   };
 
   checkBalance();
-  setInterval(checkBalance, 5000); // Check balance every 25 secs
+  setInterval(checkBalance, 25000); // Check balance every 25 secs
 }
 
 askForWalletAddress();
